@@ -46,7 +46,8 @@ int main()
     struct sockaddr_in addr;
     socklen_t size_addr = sizeof(addr);
     
-    if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    server_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_sock < 0)
     {
         perror("Error:  socket failed\n");
         exit(EXIT_FAILURE);
@@ -108,7 +109,8 @@ int main()
     	{
     	    if (FD_ISSET(server_sock, &read_fds))
     	    {
-    	        if (client_sock = accept(server_sock, (struct sockaddr *)&addr, &size_addr) < 0)
+                client_sock = accept(server_sock, (struct sockaddr *)&addr, &size_addr);
+                if (client_sock < 0)
     	        {
     	            perror("Error: accept failed\n");
     	            continue;
