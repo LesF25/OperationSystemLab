@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+using namespace std;
 
 volatile sig_atomic_t get_sig = 0;
 
@@ -39,7 +41,7 @@ int main()
     
     /*создание сокета для приёма */
     int message_sock = -1, client_sock;
-    char buffer[1024];
+    string buffer;
     
     /*создание сокета для сервера*/
     int server_sock, port = 8080;
@@ -70,8 +72,19 @@ int main()
     }
     printf("Server is listening on port %d\n", port);
     
-    fd_set read_fds;		//файловый дескриптор для слежки за появлением данных				
-    FD_ZERO(&read_fds);  				
+    fd_set read_fds;		                //файловый дескриптор для слежки за появлением данных				
+    FD_ZERO(&read_fds);
+    FD_SET(server_sock, &read_fds);     	//добавляем server_socket в группу
+
+    sigset_t blocked_mask, mask;
+    sigemptyset(&blocked_mask);
+    sigemptyset(&mask);
+    sigaddset(&blocked_mask, SIGHUP);
+    sigprocmask(SIG_BLOCK, &blocked_mask, &mask);
+
+    struct timespec tv;	                    // ожидание данных при вызове pselect
+    tv.tv_sec = 10;
+    tv.tv_nsec = 0;
     
     while(true)
     {
@@ -85,19 +98,6 @@ int main()
                 get_sig = 0;
 	        }
     	}
-    	
-    	/*добавляем server_socket в группу*/
-    	FD_SET(server_sock, &read_fds);
-    	
-    	sigset_t blocked_mask, mask;
-    	sigemptyset(&blocked_mask);
-    	sigemptyset(&mask);
-    	sigaddset(&blocked_mask, SIGHUP);
-    	sigprocmask(SIG_BLOCK, &blocked_mask, &mask);
-    	
-	    struct timespec tv;	// ожидание данных при вызове select
-        tv.tv_sec = 1;
-        tv.tv_nsec = 0;
     	
     	int result = pselect(server_sock + 1, &read_fds, NULL, NULL, &tv, &mask);
     	
@@ -121,11 +121,11 @@ int main()
     	        // 1. Оставляем одно соединение принятым, остальные закрываем
     	        if (message_sock == -1)
     	            message_sock = client_sock;
-    	        else
-    	            close(client_sock);
+                else
+                    close(client_sock);
     	        
     	        // 2. При появлении любых данных выводим сообщение
-    	        size_t bytes_rec = recv(message_sock, buffer, sizeof(buffer), 0);
+    	        size_t bytes_rec = recv(message_sock, buffer.c_str(), sizeof(buffer), 0);
     	        
     	        if (bytes_rec > 0)
     	        {
@@ -135,15 +135,14 @@ int main()
     	        else if (bytes_rec == 0)
     	        {
     	            printf("Received 0 bytes.\n");
-    	            close(message_sock);
-    	            message_sock = -1;
+                    raise(SIGHUP);
     	        }
     	        else
     	            perror("Error: receiving data\n");
     	    }
     	}
     	else
-    	    printf("No data within one second.\n");
+    	    printf("No data within ten second.\n");
     }
     
     return 0;
