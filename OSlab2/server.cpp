@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 using namespace std;
 
 volatile sig_atomic_t get_sig = 0;
@@ -41,7 +41,6 @@ int main()
     
     /*создание сокета для приёма */
     int message_sock = -1, client_sock;
-    string buffer;
     
     /*создание сокета для сервера*/
     int server_sock, port = 8080;
@@ -72,6 +71,7 @@ int main()
     }
     printf("Server is listening on port %d\n", port);
     
+    
     fd_set read_fds;		                //файловый дескриптор для слежки за появлением данных				
     FD_ZERO(&read_fds);
     FD_SET(server_sock, &read_fds);     	//добавляем server_socket в группу
@@ -88,14 +88,17 @@ int main()
     
     while(true)
     {
+    	FD_ZERO(&read_fds);
+    	FD_SET(server_sock, &read_fds);     	//добавляем server_socket в группу
+    
     	if (get_sig == 1)
     	{
 	        if (message_sock != -1)
 	        {
-                close(message_sock);
-	        
+                    close(message_sock);
 	            message_sock = -1;
-                get_sig = 0;
+	            
+                    get_sig = 0;
 	        }
     	}
     	
@@ -125,11 +128,12 @@ int main()
                     close(client_sock);
     	        
     	        // 2. При появлении любых данных выводим сообщение
-    	        size_t bytes_rec = recv(message_sock, buffer.c_str(), sizeof(buffer), 0);
+    	        char buf[1024];
+    	        size_t bytes_rec = recv(message_sock, buf, sizeof(buf), 0);
     	        
     	        if (bytes_rec > 0)
     	        {
-    	            buffer[bytes_rec] = '\0';
+    	            buf[bytes_rec] = '\0';
     	            printf("Received %zu bytes.\n", bytes_rec);
     	        }
     	        else if (bytes_rec == 0)
